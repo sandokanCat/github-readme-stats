@@ -25,11 +25,11 @@ jobs:
           git remote add upstream https://github.com/anuraghazra/github-readme-stats.git || echo "Upstream already exists"
           git fetch upstream
 
-      - name: Rebase fork on upstream/main
+      - name: Rebase fork on upstream/master
         id: rebase
         run: |
-          git checkout main
-          git rebase upstream/main || git rebase --abort
+          git checkout master
+          git rebase upstream/master || git rebase --abort
           if [ -n "$(git status --porcelain)" ]; then
             echo "changes=true" >> $GITHUB_OUTPUT
           else
@@ -38,7 +38,7 @@ jobs:
 
       - name: Push changes to fork
         if: steps.rebase.outputs.changes == 'true'
-        run: git push origin main --force-with-lease
+        run: git push origin master --force-with-lease
 
       - name: Notify by email if rebase fails
         if: failure()
