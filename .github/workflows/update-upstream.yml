@@ -1,0 +1,54 @@
+name: Update Fork from Upstream
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/anuraghazra/github-readme-stats.git || echo "Upstream already exists"
+          git fetch upstream
+
+      - name: Rebase fork on upstream/main
+        id: rebase
+        run: |
+          git checkout main
+          git rebase upstream/main || git rebase --abort
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push changes to fork
+        if: steps.rebase.outputs.changes == 'true'
+        run: git push origin main --force-with-lease
+
+      - name: Notify by email if rebase fails
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_ADDRESS }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.DEV_EMAIL }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "⚠️ Fork update failed"
+          to: ${{ secrets.DEV_EMAIL }}
+          from: "github-actions[bot]@users.noreply.github.com"
+          body: 'The scheduled rebase of your <a href="https://github.com/sandokanCat/github-readme-stats" target="_blank">github-readme-stats</a> fork failed. Check GitHub Actions logs.'
